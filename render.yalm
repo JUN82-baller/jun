@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: quotes-api
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn config.wsgi"
+    envVars:
+      - key: DATABASE_URL
+        value: mysql://<USER>:<PASSWORD>@<HOST>/<DB_NAME>
