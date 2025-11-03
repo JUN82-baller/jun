@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quotes API Demo</title>
+</head>
+<body>
+    <h1>Quotes API Demo</h1>
+    <input type="text" id="author" placeholder="Author">
+    <input type="text" id="text" placeholder="Quote text">
+    <button id="addBtn">Add Quote</button>
+
+    <ul id="quoteList"></ul>
+
+    <script>
+        const apiUrl = 'http://127.0.0.1:8000/api/quote/';
+
+        // Get CSRF token from cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Add CSRF token to all non-GET requests
+        function fetchWithCSRF(url, options = {}) {
+            const csrftoken = getCookie('csrftoken');
+            return fetch(url, {
+                ...options,
+                credentials: 'same-origin',
+                headers: {
+                    ...options.headers,
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json'
+                }
+            });
+        }
+
+        // Edit quote function
+        function editQuote(id, oldAuthor, oldText) {
+            const newAuthor = prompt('Edit author:', oldAuthor);
+            const newText = prompt('Edit text:', oldText);
+            if (!newAuthor || !newText) return;
+
+            fetchWithCSRF(`${apiUrl}${id}/`, {
+                method: 'PUT',
+                body: JSON.stringify({ author: newAuthor, text: newText })
+            })
+            .then(res => res.ok ? loadQuotes() : Promise.reject('Update failed'))
+            .catch(err => alert('Error updating quote: ' + err));
+        }
+
+        // Load quotes function
+        function loadQuotes() {
+            fetch(apiUrl)
+                .then(res => res.json())
+                .then(quotes => {
+                    const list = document.getElementById('quoteList');
+                    list.innerHTML = '';
+                    quotes.forEach(quote => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <strong>${quote.author}:</strong> "${quote.text}"
+                            <button onclick="editQuote(${quote.id}, '${quote.author}', '${quote.text}')">Edit</button>
+                            <button onclick="deleteQuote(${quote.id})">Delete</button>
+                        `;
+                        list.appendChild(li);
+                    });
+                })
+                .catch(err => console.error('Error loading quotes:', err));
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', loadQuotes);
+    </script>
+</body>
+</html>

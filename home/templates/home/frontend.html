@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quotes API Demo</title>
+</head>
+<body>
+    <h1>Quotes API Demo</h1>
+    <input type="text" id="author" placeholder="Author">
+    <input type="text" id="text" placeholder="Quote text">
+    <button id="addBtn">Add Quote</button>
+
+    <ul id="quoteList"></ul>
+
+    <script>
+        const apiUrl = 'http://127.0.0.1:8000/api/quote/';
+        // Đọc dữ liệu
+        async function loadQuotes() {
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        document.getElementById('quotes').innerHTML =
+        data.map(q => `<p>${q.text} — <b>${q.author}</b></p>`).join('');
+
+        // Load all quotes
+        function loadQuotes() {
+            fetch(apiUrl)
+                .then(res => res.json())
+                .then(data => {
+                    const list = document.getElementById('quoteList');
+                    list.innerHTML = '';
+
+                    data.forEach(q => {
+                        const li = document.createElement('li');
+                        li.textContent = `${q.author}: "${q.text}" `;
+
+                        // Create Edit button
+                        const editBtn = document.createElement('button');
+                        editBtn.textContent = 'Edit';
+                        editBtn.addEventListener('click', () => edit_quote(q.id, q.author, q.text));
+
+                        // Create Delete button
+                        const delBtn = document.createElement('button');
+                        delBtn.textContent = 'Delete';
+                        delBtn.addEventListener('click', () => deleteQuote(q.id));
+
+                        // Append buttons to li
+                        li.appendChild(editBtn);
+                        li.appendChild(delBtn);
+                        list.appendChild(li);
+                    });
+                })
+                .catch(err => console.error('Error loading quotes:', err));
+        }
+
+        // Lấy cookie (CSRF)
+        function getCookie(name) {
+            let v = null;
+            if (document.cookie && document.cookie !== '') {
+                const parts = document.cookie.split(';');
+                for (let i = 0; i < parts.length; i++) {
+                    const c = parts[i].trim();
+                    if (c.startsWith(name + '=')) {
+                        v = decodeURIComponent(c.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return v;
+        }
+
+        // Add quote function (với CSRF và hiển thị lỗi server)
+        function add_quote() {
+            const authorEl = document.getElementById('author');
+            const textEl = document.getElementById('text');
+            const author = authorEl.value.trim();
+            const text = textEl.value.trim();
+
+            if (!author || !text) {
+                alert('Vui lòng nhập author và text.');
+                return;
+            }
+
+            const csrftoken = getCookie('csrftoken');
+
+            fetch(apiUrl, {
+                method: 'POST',
+                credentials: 'same-origin', // gửi cookie tới server cùng origin
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken || ''
+                },
+                body: JSON.stringify({ author, text })
+            })
+            .then(async res => {
+                const textBody = await res.text();
+                const contentType = res.headers.get('content-type') || '';
+                // Nếu không OK, cố parse JSON lỗi hoặc trả text
+                if (!res.ok) {
+                    let errMsg = textBody || res.statusText;
+                    if (contentType.includes('application/json')) {
+                        try { errMsg = JSON.parse(textBody); } catch(e) {}
+                    }
+                    return Promise.reject(errMsg);
+                }
+                if (contentType.includes('application/json')) {
+                    try { return JSON.parse(textBody); } catch(e) { return null; }
+                }
+                return null;
+            })
+            .then(() => {
+                authorEl.value = '';
+                textEl.value = '';
+                loadQuotes();
+            })
+            .catch(err => {
+                console.error('Error adding quote:', err);
+                // Hiện lỗi chi tiết (nếu là object thì stringify)
+                const msg = (typeof err === 'object') ? JSON.stringify(err) : String(err);
+                alert('Thêm quote thất bại: ' + (msg || 'Unknown error'));
+            });
+        }
+
+        // Delete quote function (gửi CSRF + credentials, show confirm và xử lý lỗi)
+        function deleteQuote(id) {
+            if (!confirm('Bạn có chắc muốn xóa quote này?')) return;
+            const csrftoken = getCookie('csrftoken');
+
+            fetch(`${apiUrl}${id}/`, {
+                method: 'DELETE',
+                credentials: 'same-origin',
+                headers: {
+                    'X-CSRFToken': csrftoken || ''
+                }
+            })
+            .then(async res => {
+                const textBody = await res.text();
+                const contentType = res.headers.get('content-type') || '';
+                if (!res.ok) {
+                    let errMsg = textBody || res.statusText;
+                    if (contentType.includes('application/json')) {
+                        try { errMsg = JSON.parse(textBody); } catch(e) {}
+                    }
+                    return Promise.reject(errMsg);
+                }
+                return null;
+            })
+            .then(() => loadQuotes())
+            .catch(err => {
+                console.error('Error deleting:', err);
+                const msg = (typeof err === 'object') ? JSON.stringify(err) : String(err);
+                alert('Xóa thất bại: ' + (msg || 'Unknown error'));
+            });
+        }
+
+        // Edit quote function (gửi CSRF + credentials, xử lý response không có JSON)
+        function edit_quote(id, old_author, old_text) {
+            const new_author = prompt("Edit author:", old_author);
+            const new_text = prompt("Edit text:", old_text);
+
+            if (!new_author || !new_text) return;
+
+            const csrftoken = getCookie('csrftoken');
+
+            fetch(`${apiUrl}${id}/`, {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken || ''
+                },
+                body: JSON.stringify({ author: new_author, text: new_text })
+            })
+            .then(async res => {
+                const textBody = await res.text();
+                const contentType = res.headers.get('content-type') || '';
+                if (!res.ok) {
+                    let errMsg = textBody || res.statusText;
+                    if (contentType.includes('application/json')) {
+                        try { errMsg = JSON.parse(textBody); } catch(e) {}
+                    }
+                    return Promise.reject(errMsg);
+                }
+                if (contentType.includes('application/json')) {
+                    try { return JSON.parse(textBody); } catch(e) { return null; }
+                }
+                return null;
+            })
+            .then(() => loadQuotes())
+            .catch(err => {
+                console.error('Error updating:', err);
+                const msg = (typeof err === 'object') ? JSON.stringify(err) : String(err);
+                alert('Cập nhật thất bại: ' + (msg || 'Unknown error'));
+            });
+        }
+
+        // Gán sự kiện cho nút Add và load quotes khi trang load
+        document.getElementById('addBtn').addEventListener('click', add_quote);
+        document.addEventListener('DOMContentLoaded', loadQuotes);
+    </script>
+</body>
+</html>

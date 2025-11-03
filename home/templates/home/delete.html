@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Quote</title>
+</head>
+<body>
+    <h1>Delete Quote</h1>
+
+    <div class="quote-details">
+        <p><strong>Author:</strong> {{ quote.author }}</p>
+        <p><strong>Text:</strong> "{{ quote.text }}"</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <p>Are you sure you want to delete this quote?</p>
+        <button type="submit">Yes, Delete</button>
+        <a href="{% url 'home:index' %}">No, Cancel</a>
+    </form>
+
+    <hr>
+    <a href="{% url 'home:index' %}">Back to Home</a>
+</body>
+</html>

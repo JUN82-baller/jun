@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quote list </title>
+</head>
+<body>
+    <h1>Add a New Quote</h1>
+
+    <form method ="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Add Quote</button>
+    </form>
+
+    <hr>
+    <h2>All Quotes</h2>
+    <ul>
+        {% for quote in quotes %}
+            <li>
+            <strong>{{ quote.author }}:</strong> "{{ quote.text }}"
+            <a href="{% url 'home:edit_quote' quote.id %}">Edit</a>
+            <a href="{% url 'home:delete_quote' quote.id %}" onclick="return confirm('Xoa quote nay khong')">Delete</a>
+        {% empty %}
+            <li>No quotes available.</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
